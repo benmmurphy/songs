@@ -69,13 +69,12 @@ def shortest_path(start, finish, nodes, edges)
 
   queue = Queue.new
 
-  start_nodes = nodes[start]
-  finish_nodes = nodes[finish]
+  # for shortest path it doesn't matter...
+  start_node = nodes[start].first
+  finish_node = nodes[finish].first
 
-  start_nodes.each do |start_node|
-    queue << start_node
-    visited[start_node] = true
-  end
+  queue << start_node
+  visited[start_node] = true
 
   final_node = nil
   while (!queue.empty?)
@@ -85,27 +84,28 @@ def shortest_path(start, finish, nodes, edges)
         prev_edge[tail] = next_vertex
         queue << tail
         visited[tail] = true
-        if finish_nodes.include?(tail)
-          final_node = tail
+        if finish_node == tail
           break
         end
       end    
     end
   end
 
-  if final_node.nil?
-    puts "could not find a path"
-  else
-    result = [final_node]
-    next_edge = final_node
-    while (!prev_edge[next_edge].nil?)
-      next_edge = prev_edge[next_edge]
-      result << next_edge
-    end
-
-    result = result.reverse
-    puts result
+  result = [finish_node]
+  next_edge = finish_node
+  while (!prev_edge[next_edge].nil?)
+    next_edge = prev_edge[next_edge]
+    result << next_edge
   end
+
+  result = result.reverse
+ 
+  if result[0] == start_node 
+    puts result
+  else
+    puts "cannot find path"
+  end
+  
 end
 
 start = ARGV[0]
