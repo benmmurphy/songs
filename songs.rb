@@ -1,11 +1,18 @@
+require 'bundler'
+Bundler.setup
+
 require 'nokogiri'
-#require 'queue'
+require 'algorithms'
+
 
 class Song
-  def initialize(name, time)
+  include Comparable
+
+  attr_reader :name, :duration
+  def initialize(name, duration)
     @name = name
     @clean_name = clean_name(name)
-    @time = time
+    @duration = duration
   end
 
   def clean_name(name)
@@ -27,6 +34,12 @@ class Song
     "#{@name}"
   end
 
+  # horrible hack for using priority queue
+  def <=>(other)
+    self.object_id <=> other.object_id
+  end
+
+
 end
 
 
@@ -43,14 +56,77 @@ end
 doc.xpath('/Library/Artist/Song').each do |song|
   name = song.attribute("name").to_s
   duration = song.attribute("duration").to_s
-  song = Song.new(name, duration)
+  song = Song.new(name, duration.to_s.to_i)
   nodes[name].push(song)
   edges[song.first_letter].push(song)
 end
 
-def duration(nodes, edges)
 
+
+
+
+def shortest_weighted_path(start, finish, nodes, edges)
+  infinity = 1/0.0
+
+  prev_edge = {}
+  
+  duration = {}
+
+  if !nodes.include?(start)
+    puts "start does not exist"
+    exit 1
+  end
+
+  if !nodes.include?(finish)
+    puts "finish does not exist"
+    exit 1
+  end
+
+  queue = Containers::MinHeap.new()
+
+  nodes.each_value do |node_list|
+    node_list.each do |node|
+      if node.name == start
+        key = [node.duration, node]
+        queue.push(key, node)
+        duration[node] = node.duration
+      else
+        key = [infinity, node]
+        queue.push(key, node)
+        duration[node] = infinity
+      end
+    end
+  end
+
+  while (!queue.empty?)
+    next_vertex = queue.pop
+    vertex_duration = duration[next_vertex]
+
+    if vertex_duration == infinity
+      break
+    end
+
+    edges[next_vertex.last_letter].each do |tail|
+
+      tail_duration = duration[tail]
+      new_tail_duration = vertex_duration + tail.duration
+
+      if new_tail_duration < tail_duration
+        original_key = [duration[tail], tail]
+        queue.change_key(original_key, [new_tail_duration, tail])
+        duration[tail] = new_tail_duration
+        prev_edge[tail] = next_vertex
+      end  
+    end
+  end
+
+  best_duration, best_finish_node = nodes[finish].map {|n| [duration[n], n]}.sort_by {|d,n| d}.first
+
+  puts best_duration
+
+  dump_path(prev_edge, nodes[start], best_finish_node)
 end
+
 def shortest_path(start, finish, nodes, edges)
   prev_edge = {}
 
@@ -76,7 +152,6 @@ def shortest_path(start, finish, nodes, edges)
   queue << start_node
   visited[start_node] = true
 
-  final_node = nil
   while (!queue.empty?)
     next_vertex = queue.pop
     edges[next_vertex.last_letter].each do |tail|
@@ -91,6 +166,11 @@ def shortest_path(start, finish, nodes, edges)
     end
   end
 
+
+  dump_path(prev_edge, [start_node], finish_node)
+end
+
+def dump_path(prev_edge, start_nodes, finish_node)
   result = [finish_node]
   next_edge = finish_node
   while (!prev_edge[next_edge].nil?)
@@ -100,17 +180,20 @@ def shortest_path(start, finish, nodes, edges)
 
   result = result.reverse
  
-  if result[0] == start_node 
-    puts result
+  if start_nodes.include?(result[0])
+    result.each do |song|
+      puts "#{song.name} - #{song.duration}"
+    end
   else
     puts "cannot find path"
-  end
-  
+  end  
 end
 
 start = ARGV[0]
 finish = ARGV[1]
 
 shortest_path(start, finish, nodes, edges)
+
+shortest_weighted_path(start, finish, nodes, edges)
 
 
